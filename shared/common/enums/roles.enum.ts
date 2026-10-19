@@ -1,0 +1,6 @@
+export enum ROLES_ENUM {
+  CUSTOMER,
+  SELLER,
+  ADMIN,
+  SUPER_ADMIN,
+}

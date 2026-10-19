@@ -1,0 +1,6 @@
+export enum USER_STATUS_ENUM {
+  ACTIVE,
+  INACTIVE,
+  BLOCKED,
+  DELETED,
+}

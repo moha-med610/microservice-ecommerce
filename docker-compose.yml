@@ -1,0 +1,88 @@
+services:
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    hostname: kafka
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  auth-service:
+    container_name: auth-service
+    build:
+      context: .
+      dockerfile: ./apps/auth-service/dockerfile
+    secrets:
+      - access_private_key
+      - access_public_key
+      - refresh_private_key
+      - refresh_public_key
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+
+  notifications-service:
+    container_name: notifications-service
+    build:
+      context: .
+      dockerfile: ./apps/notifications-service/dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+
+  api-gateway:
+    container_name: api-gateway
+    build:
+      context: .
+      dockerfile: ./apps/api-gateway/dockerfile
+    secrets:
+      - access_public_key
+      - refresh_public_key
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+
+volumes:
+  postgres_data:
+  kafka_data:
+
+networks:
+  e-commerce_microservice:
+    driver: bridge
+
+secrets:
+  access_private_key:
+    file: ./keys/access-private.key
+
+  access_public_key:
+    file: ./keys/access-public.key
+
+  refresh_private_key:
+    file: ./keys/refresh-private.key
+
+  refresh_public_key:
+    file: ./keys/refresh-public.key
