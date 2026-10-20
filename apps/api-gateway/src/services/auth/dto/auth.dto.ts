@@ -39,3 +39,9 @@ export class VerifyEmailDto {
   @Length(6, 6)
   otp!: string;
 }
+
+export class GoogleTokenDto {
+  @IsString()
+  @IsNotEmpty()
+  token!: string;
+}

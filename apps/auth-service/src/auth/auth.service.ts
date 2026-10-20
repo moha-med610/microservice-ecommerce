@@ -2,7 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HashService } from '../common/modules/hash/hash.service.js';
-import { AuthDto, RefreshTokenDto, VerifyEmailDto } from './dto/auth.dto.js';
+import {
+  AuthDto,
+  GoogleTokenDto,
+  RefreshTokenDto,
+  VerifyEmailDto,
+} from './dto/auth.dto.js';
 import { AuthEntity } from './model/auth.model.js';
 import { TokenService } from '@shared/common/modules/token/token.service.js';
 import { AppRpcException } from '@shared/utils/errors/app-rpc.exception.js';
@@ -12,9 +17,15 @@ import { ClientKafka } from '@nestjs/microservices';
 import { OTP } from '../utils/security/generateOtp.js';
 import { type Cache } from 'cache-manager';
 import { OTP_KEY } from '../utils/cache-keys.js';
+import { AUTH_PROVIDER } from '../common/enums/auth-provider.enum.js';
+import { OAuth2Client } from 'google-auth-library';
+import { userDataHelper } from '../utils/user-data-helper.js';
+import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client;
+
   constructor(
     @InjectRepository(AuthEntity)
     private readonly authRepo: Repository<AuthEntity>,
@@ -22,7 +33,9 @@ export class AuthService {
     private readonly hashService: HashService,
     @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
     @Inject('CACHE_MANAGER') private cacheManger: Cache,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client();
+  }
 
   async login(loginData: AuthDto) {
     const { email, password } = loginData;
@@ -36,9 +49,17 @@ export class AuthService {
       });
     }
 
+    if (!findUser.password && findUser.provider !== AUTH_PROVIDER.SYSTEM) {
+      throw new AppRpcException({
+        code: 'BAD_REQUEST',
+        statusCode: 400,
+        message: 'Try Login With Your Social Account',
+      });
+    }
+
     const isCorrectPassword = await this.hashService.compareHash(
       password,
-      findUser.password,
+      findUser.password!,
     );
     if (!isCorrectPassword) {
       throw new AppRpcException({
@@ -48,38 +69,17 @@ export class AuthService {
       });
     }
 
-    const userData = {
-      id: findUser.id,
-      email: findUser.email,
-      role: findUser.role,
-      status: findUser.status,
-      is_verified: findUser.is_verified,
-      verified_at: findUser.verified_at,
-      created_at: findUser.created_at,
-      updated_at: findUser.updated_at,
-    };
+    const userData = userDataHelper(findUser);
 
     // create access token
-    const accessToken = this.tokenService.createToken({
-      type: TokenType.ACCESS,
-      id: findUser.id,
-      email: findUser.email,
-      status: findUser.status,
-      role: findUser.role,
-      token_version: findUser.token_version,
-      isVerified: findUser.is_verified,
-    });
+    const accessToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.ACCESS, findUser),
+    );
 
     // create refresh token
-    const refreshToken = this.tokenService.createToken({
-      type: TokenType.REFRESH,
-      id: findUser.id,
-      email: findUser.email,
-      status: findUser.status,
-      role: findUser.role,
-      token_version: findUser.token_version,
-      isVerified: findUser.is_verified,
-    });
+    const refreshToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.REFRESH, findUser),
+    );
 
     // return access token and refresh token and user data
     return {
@@ -115,42 +115,10 @@ export class AuthService {
 
     await this.cacheManger.set(OTP_KEY(newUser.email), OTP, 5 * 60 * 1000);
 
-    const userData = {
-      id: newUser.id,
-      email: newUser.email,
-      role: newUser.role,
-      status: newUser.status,
-      is_verified: newUser.is_verified,
-      verified_at: newUser.verified_at,
-      created_at: newUser.created_at,
-      updated_at: newUser.updated_at,
-    };
-
-    // create access token
-    const accessToken = this.tokenService.createToken({
-      type: TokenType.ACCESS,
-      id: newUser.id,
-      email: newUser.email,
-      status: newUser.status,
-      role: newUser.role,
-      token_version: newUser.token_version,
-      isVerified: newUser.is_verified,
-    });
-
-    // create refresh token
-    const refreshToken = this.tokenService.createToken({
-      type: TokenType.REFRESH,
-      id: newUser.id,
-      email: newUser.email,
-      status: newUser.status,
-      role: newUser.role,
-      token_version: newUser.token_version,
-      isVerified: newUser.is_verified,
-    });
-
     return {
-      message: 'User registered successfully',
-      data: { accessToken, refreshToken, user: userData },
+      message:
+        'User registered successfully, Please Follow Your Email To Verify Your Account',
+      data: {},
     };
   }
 
@@ -215,14 +183,7 @@ export class AuthService {
       isVerified: user.is_verified,
     });
 
-    const userData = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      status: user.status,
-      created_at: user.created_at,
-      updated_at: user.updated_at,
-    };
+    const userData = userDataHelper(user);
 
     return {
       message: 'Token refreshed successfully',
@@ -270,12 +231,94 @@ export class AuthService {
 
     await this.cacheManger.del(OTP_KEY(email));
 
+    const userData = userDataHelper(user);
+
+    // create access token
+    const accessToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.ACCESS, user),
+    );
+
+    // create refresh token
+    const refreshToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.REFRESH, user),
+    );
+
     // send event to create profile data
     this.kafkaClient.emit('auth.verified', user.id);
 
     return {
       message: 'Congratulation, Your Account Verified successfully',
-      data: {},
+      data: {
+        accessToken,
+        refreshToken,
+        user: userData,
+      },
+    };
+  }
+
+  async loginWithGoogle(data: GoogleTokenDto) {
+    const { token } = data;
+
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken: token,
+      audience: '',
+    });
+
+    const googlePayload = ticket.getPayload();
+
+    let user: AuthEntity | null;
+
+    user = await this.authRepo.findOne({
+      where: { email: googlePayload?.email },
+    });
+
+    let accessToken: string;
+    let refreshToken: string;
+
+    if (user) {
+      if (user.provider !== AUTH_PROVIDER.GOOGLE) {
+        throw new AppRpcException({
+          code: 'BAD_REQUEST',
+          statusCode: 400,
+          message: 'Try Login With Your App Account',
+        });
+      }
+
+      accessToken = this.tokenService.createToken(
+        tokenPayloadHelper(TokenType.ACCESS, user),
+      );
+
+      refreshToken = this.tokenService.createToken(
+        tokenPayloadHelper(TokenType.REFRESH, user),
+      );
+    } else {
+      user = this.authRepo.create({
+        email: googlePayload?.email,
+        google_id: googlePayload?.sub,
+        provider: AUTH_PROVIDER.GOOGLE,
+        is_verified: googlePayload?.email_verified,
+        verified_at: new Date(Date.now()),
+      });
+      await this.authRepo.save(user);
+
+      accessToken = this.tokenService.createToken(
+        tokenPayloadHelper(TokenType.ACCESS, user),
+      );
+
+      refreshToken = this.tokenService.createToken(
+        tokenPayloadHelper(TokenType.REFRESH, user),
+      );
+    }
+
+    const userData = userDataHelper(user);
+
+    return {
+      message: 'Sign With Google successfully',
+      data: {
+        accessToken,
+        refreshToken,
+        user: userData,
+      },
     };
   }
 }

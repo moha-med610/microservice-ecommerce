@@ -1,7 +1,12 @@
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { AuthService } from './auth.service.js';
-import { AuthDto, RefreshTokenDto, VerifyEmailDto } from './dto/auth.dto.js';
+import {
+  AuthDto,
+  GoogleTokenDto,
+  RefreshTokenDto,
+  VerifyEmailDto,
+} from './dto/auth.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -25,5 +30,10 @@ export class AuthController {
   @MessagePattern('auth.verifyEmail')
   async verifyEmail(@Payload() data: VerifyEmailDto) {
     return this.authService.verifyEmail(data);
+  }
+
+  @MessagePattern('auth.loginWithGoogle')
+  async loginWithGoogle(@Payload() data: GoogleTokenDto) {
+    return this.authService.loginWithGoogle(data);
   }
 }
