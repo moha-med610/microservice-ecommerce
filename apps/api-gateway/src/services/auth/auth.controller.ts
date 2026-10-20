@@ -27,4 +27,9 @@ export class AuthController {
   async verifyEmail(@Body() data: VerifyEmailDto) {
     return this.authService.verifyEmail(data);
   }
+
+  @Post('google')
+  async loginWithGoogle(@Body() data: any) {
+    return this.authService.loginWithGoogle(data);
+  }
 }

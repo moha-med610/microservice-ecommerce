@@ -34,4 +34,8 @@ export class AuthService implements OnModuleInit {
   async verifyEmail(data: VerifyEmailDto) {
     return this.KafkaRequest.send(this.client, 'auth.verifyEmail', data);
   }
+
+  async loginWithGoogle(data: any) {
+    return this.KafkaRequest.send(this.client, 'auth.loginWithGoogle', data);
+  }
 }
