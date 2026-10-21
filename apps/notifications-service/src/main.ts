@@ -12,8 +12,10 @@ async function bootstrap() {
           clientId: 'notifications-service',
           brokers: ['kafka:9092'],
         },
+        retry: { initialRetryTime: 300, retries: 15 },
         consumer: {
           groupId: 'notifications-service-group',
+          allowAutoTopicCreation: true,
         },
       },
     },
