@@ -33,22 +33,26 @@ services:
       - access_public_key
       - refresh_private_key
       - refresh_public_key
-    restart: unless-stopped
     env_file:
       - .env
     networks:
       - e-commerce_microservice
+    depends_on:
+      - kafka
+      - postgres
+      - notifications-service
 
   notifications-service:
     container_name: notifications-service
     build:
       context: .
       dockerfile: ./apps/notifications-service/dockerfile
-    restart: unless-stopped
     env_file:
       - .env
     networks:
       - e-commerce_microservice
+    depends_on:
+      - kafka
 
   api-gateway:
     container_name: api-gateway
@@ -58,13 +62,14 @@ services:
     secrets:
       - access_public_key
       - refresh_public_key
-    restart: unless-stopped
     ports:
       - '3000:3000'
     env_file:
       - .env
     networks:
       - e-commerce_microservice
+    depends_on:
+      - auth-service
 
 volumes:
   postgres_data:

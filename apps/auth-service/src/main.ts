@@ -14,8 +14,10 @@ async function bootstrap() {
           clientId: 'auth-service',
           brokers: ['kafka:9092'],
         },
+        retry: { initialRetryTime: 300, retries: 15 },
         consumer: {
           groupId: 'auth-service-group',
+          allowAutoTopicCreation: true,
         },
         producer: {
           allowAutoTopicCreation: true,
