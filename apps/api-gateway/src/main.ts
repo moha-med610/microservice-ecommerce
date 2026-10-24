@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule, ObserveInstrument } from './app.module.js';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor.js';
 import { RpcToHttpExceptionFilter } from './common/filters/exception.filter.js';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { CustomThrottlerGuard } from '@shared/common/guards/customThrottler.guard.js';
 
 async function bootstrap() {
@@ -18,7 +18,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.setGlobalPrefix('/v1/api/');
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+  app.setGlobalPrefix('api');
   app.enableCors();
   app.enableCsrfProtection();
   app.useGlobalGuards(app.get(CustomThrottlerGuard));

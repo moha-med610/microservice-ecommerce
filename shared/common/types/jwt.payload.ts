@@ -10,4 +10,7 @@ export type JwtPayload = {
   status: USER_STATUS_ENUM;
   token_version: number;
   isVerified: boolean;
+  iat: Date;
+  exp: Date;
+  jti: string;
 };

@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common';
 import { EmailNotificationsService } from './email-notifications.service.js';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { type otpPayload } from '@shared/common/types/otp.payload.js';
+import { VerifyEmailDto } from './dto/verify-email.dto.js';
 
 @Controller('email-notifications')
 export class EmailNotificationsController {
@@ -10,7 +10,7 @@ export class EmailNotificationsController {
   ) {}
 
   @EventPattern('auth.created')
-  async sendOtpEmail(@Payload() data: otpPayload) {
+  async sendOtpEmail(@Payload() data: VerifyEmailDto) {
     return this.emailNotificationsService.sendOtpEmail(data);
   }
 }

@@ -1,25 +1,19 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { USER_STATUS_ENUM } from '../enums/usersStatus.enum.js';
 import { getAccessPublicKey } from '../../utils/security/keys.js';
+import { USER_STATUS_ENUM } from '../enums/usersStatus.enum.js';
 import { JwtPayload } from '../types/jwt.payload.js';
-import { ClientKafka } from '@nestjs/microservices';
-import { firstValueFrom, timeout } from 'rxjs';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(
-    private readonly jwtService: JwtService,
-    @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
-  ) {}
+  constructor(private readonly jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
