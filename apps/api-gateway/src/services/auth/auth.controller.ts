@@ -1,7 +1,8 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service.js';
 import { AuthDto, RefreshTokenDto, VerifyEmailDto } from './dto/auth.dto.js';
+import { AuthGuard } from '@shared/common/guards/auth.guard.js';
 
 @Throttle({ default: { ttl: 5 * 60 * 1000, limit: 5 } })
 @Controller('auth')
@@ -31,5 +32,13 @@ export class AuthController {
   @Post('google')
   async loginWithGoogle(@Body() data: any) {
     return this.authService.loginWithGoogle(data);
+  }
+
+  @UseGuards(AuthGuard)
+  @Get('check')
+  checkGuard() {
+    return {
+      success: true,
+    };
   }
 }

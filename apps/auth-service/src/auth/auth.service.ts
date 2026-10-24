@@ -21,6 +21,7 @@ import { AUTH_PROVIDER } from '../common/enums/auth-provider.enum.js';
 import { OAuth2Client } from 'google-auth-library';
 import { userDataHelper } from '../utils/user-data-helper.js';
 import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
+import { JwtPayload } from '@shared/common/types/jwt.payload.js';
 
 @Injectable()
 export class AuthService {
@@ -126,7 +127,7 @@ export class AuthService {
     const { refreshToken } = data;
 
     // Verify the refresh token
-    const payload = this.tokenService.verifyToken(
+    const payload: JwtPayload = await this.tokenService.verifyToken(
       refreshToken,
       TokenType.REFRESH,
     );
@@ -139,6 +140,13 @@ export class AuthService {
       });
     }
 
+    if (!payload.exp || Number(payload.exp) * 1000 <= Date.now()) {
+      throw new AppRpcException({
+        code: 'UNAUTHORIZED',
+        statusCode: 401,
+        message: 'Token is Expired',
+      });
+    }
     // Fetch the user using the payload info
     const user = await this.authRepo.findOne({
       where: {
@@ -163,25 +171,13 @@ export class AuthService {
     }
 
     // Create new tokens
-    const newAccessToken = this.tokenService.createToken({
-      type: TokenType.ACCESS,
-      id: user.id,
-      email: user.email,
-      status: user.status,
-      role: user.role,
-      token_version: user.token_version,
-      isVerified: user.is_verified,
-    });
+    const newAccessToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.ACCESS, user),
+    );
 
-    const newRefreshToken = this.tokenService.createToken({
-      type: TokenType.REFRESH,
-      id: user.id,
-      email: user.email,
-      status: user.status,
-      role: user.role,
-      token_version: user.token_version,
-      isVerified: user.is_verified,
-    });
+    const newRefreshToken = this.tokenService.createToken(
+      tokenPayloadHelper(TokenType.REFRESH, user),
+    );
 
     const userData = userDataHelper(user);
 
@@ -224,10 +220,10 @@ export class AuthService {
       });
     }
 
-    await this.authRepo.update(
-      { id: user.id },
-      { is_verified: true, verified_at: new Date(Date.now()) },
-    );
+    user.is_verified = true;
+    user.verified_at = new Date(Date.now());
+
+    await this.authRepo.save(user);
 
     await this.cacheManger.del(OTP_KEY(email));
 
