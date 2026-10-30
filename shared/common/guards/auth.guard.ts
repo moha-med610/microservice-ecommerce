@@ -5,15 +5,16 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
-import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { getAccessPublicKey } from '../../utils/security/keys.js';
 import { USER_STATUS_ENUM } from '../enums/usersStatus.enum.js';
+import { TokenService } from '../modules/token/token.service.js';
 import { JwtPayload } from '../types/jwt.payload.js';
+import { TokenType } from '../enums/tokenType.enum.js';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(private readonly token: TokenService) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<Request>();
@@ -31,12 +32,16 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload: JwtPayload = this.jwtService.verify(token, {
-        publicKey: getAccessPublicKey(),
-        algorithms: ['RS256'],
-      });
+      const payload: JwtPayload = await this.token.verifyToken(
+        token,
+        TokenType.ACCESS,
+      );
 
-      if (payload.status != USER_STATUS_ENUM.ACTIVE) {
+      if (!payload) {
+        throw new UnauthorizedException();
+      }
+
+      if (payload.status !== USER_STATUS_ENUM.ACTIVE) {
         throw new UnauthorizedException(
           'Your account is not active. Please contact support.',
         );

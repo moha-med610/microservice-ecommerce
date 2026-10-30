@@ -50,9 +50,6 @@ export class AuthEntity {
   @Column({ type: 'int', enum: ROLES_ENUM, default: ROLES_ENUM.CUSTOMER })
   role: ROLES_ENUM;
 
-  @Column({ type: 'int', default: 0 })
-  token_version: number; // for password reset or logout
-
   @Column({ type: 'boolean', default: false })
   is_verified: boolean; // for email verification
 

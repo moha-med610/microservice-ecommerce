@@ -6,6 +6,7 @@ import { TokenModule } from '@shared/common/modules/token/token.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { CacheModule } from '@nestjs/cache-manager';
 import { randomUUID } from 'node:crypto';
+import { RedisCacheModule } from '@shared/common/modules/cache/cache.module.js';
 
 @Module({
   imports: [
@@ -16,9 +17,6 @@ import { randomUUID } from 'node:crypto';
       },
     }),
 
-    CacheModule.register({
-      isGlobal: true,
-    }),
     // Service Modules
     DatabaseModule,
     AuthModule,

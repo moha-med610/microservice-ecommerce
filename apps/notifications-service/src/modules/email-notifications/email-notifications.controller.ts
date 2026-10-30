@@ -9,8 +9,13 @@ export class EmailNotificationsController {
     private readonly emailNotificationsService: EmailNotificationsService,
   ) {}
 
-  @EventPattern('auth.created')
+  @EventPattern('user.created')
   async sendOtpEmail(@Payload() data: VerifyEmailDto) {
+    return this.emailNotificationsService.sendOtpEmail(data);
+  }
+
+  @EventPattern('notification.resendOtp')
+  async resendOtp(@Payload() data: VerifyEmailDto) {
     return this.emailNotificationsService.sendOtpEmail(data);
   }
 }

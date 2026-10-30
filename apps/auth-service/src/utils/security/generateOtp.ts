@@ -4,4 +4,4 @@ const generateOtp = (): string => {
   return randomInt(100000, 1000000).toString();
 };
 
-export const OTP = generateOtp();
+export const OTP_GENERATOR = () => generateOtp();

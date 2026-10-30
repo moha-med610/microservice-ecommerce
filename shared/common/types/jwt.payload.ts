@@ -8,7 +8,6 @@ export type JwtPayload = {
   email: string;
   role: ROLES_ENUM;
   status: USER_STATUS_ENUM;
-  token_version: number;
   isVerified: boolean;
   iat: Date;
   exp: Date;

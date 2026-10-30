@@ -23,10 +23,15 @@ export class KafkaRequestService {
           'The downstream service did not respond in time',
         );
       }
-
-      // Add transport-specific error classification here.
-      // Preserve known application errors.
       throw error;
     }
+  }
+
+  async emit<TPayload>(
+    client: ClientKafka,
+    pattern: string,
+    payload: TPayload,
+  ) {
+    return client.emit(pattern, payload);
   }
 }
