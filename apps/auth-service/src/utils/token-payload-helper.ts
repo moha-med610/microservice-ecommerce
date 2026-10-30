@@ -12,7 +12,6 @@ export const tokenPayloadHelper = (
     email: user.email,
     status: user.status,
     role: user.role,
-    token_version: user.token_version,
     isVerified: user.is_verified,
   };
 };

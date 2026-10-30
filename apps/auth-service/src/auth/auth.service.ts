@@ -1,27 +1,30 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
 import { InjectRepository } from '@nestjs/typeorm';
+import { TokenType } from '@shared/common/enums/tokenType.enum.js';
+import { USER_STATUS_ENUM } from '@shared/common/enums/usersStatus.enum.js';
+import { RedisCacheService } from '@shared/common/modules/cache/cache.service.js';
+import { TokenService } from '@shared/common/modules/token/token.service.js';
+import { JwtPayload } from '@shared/common/types/jwt.payload.js';
+import { AppRpcException } from '@shared/utils/errors/app-rpc.exception.js';
+import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { OAuth2Client } from 'google-auth-library';
 import { Repository } from 'typeorm';
+import { AUTH_PROVIDER } from '../common/enums/auth-provider.enum.js';
 import { HashService } from '../common/modules/hash/hash.service.js';
+import { OTP_KEY } from '../utils/cache-keys.js';
+import { OTP_GENERATOR } from '../utils/security/generateOtp.js';
+import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
+import { userDataHelper } from '../utils/user-data-helper.js';
 import {
-  AuthDto,
   GoogleTokenDto,
+  LoginDto,
   RefreshTokenDto,
+  RegisterDto,
+  ResendOtpDto,
   VerifyEmailDto,
 } from './dto/auth.dto.js';
 import { AuthEntity } from './model/auth.model.js';
-import { TokenService } from '@shared/common/modules/token/token.service.js';
-import { AppRpcException } from '@shared/utils/errors/app-rpc.exception.js';
-import { TokenType } from '@shared/common/enums/tokenType.enum.js';
-import { USER_STATUS_ENUM } from '@shared/common/enums/usersStatus.enum.js';
-import { ClientKafka } from '@nestjs/microservices';
-import { OTP } from '../utils/security/generateOtp.js';
-import { type Cache } from 'cache-manager';
-import { OTP_KEY } from '../utils/cache-keys.js';
-import { AUTH_PROVIDER } from '../common/enums/auth-provider.enum.js';
-import { OAuth2Client } from 'google-auth-library';
-import { userDataHelper } from '../utils/user-data-helper.js';
-import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
-import { JwtPayload } from '@shared/common/types/jwt.payload.js';
 
 @Injectable()
 export class AuthService {
@@ -32,13 +35,14 @@ export class AuthService {
     private readonly authRepo: Repository<AuthEntity>,
     private readonly tokenService: TokenService,
     private readonly hashService: HashService,
+    private readonly redisService: RedisCacheService,
     @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
-    @Inject('CACHE_MANAGER') private cacheManger: Cache,
+    private readonly kafkaRequest: KafkaRequestService,
   ) {
     this.googleClient = new OAuth2Client();
   }
 
-  async login(loginData: AuthDto) {
+  async login(loginData: LoginDto) {
     const { email, password } = loginData;
 
     const findUser = await this.authRepo.findOne({ where: { email } });
@@ -89,7 +93,7 @@ export class AuthService {
     };
   }
 
-  async register(registerData: AuthDto) {
+  async register(registerData: RegisterDto) {
     const { email, password } = registerData;
 
     const findUser = await this.authRepo.findOne({ where: { email } });
@@ -108,18 +112,30 @@ export class AuthService {
     });
     await this.authRepo.save(newUser);
 
+    const otp = OTP_GENERATOR();
+
+    const hashedOtp = await this.hashService.createHash(otp);
+
     // call send email verification email
-    this.kafkaClient.emit('auth.created', {
+    this.kafkaRequest.emit(this.kafkaClient, 'user.created', {
       email: newUser.email,
-      otp: OTP,
+      otp,
     });
 
-    await this.cacheManger.set(OTP_KEY(newUser.email), OTP, 5 * 60 * 1000);
+    const userData = userDataHelper(newUser);
+
+    await this.redisService.setData(
+      OTP_KEY(newUser.email),
+      hashedOtp,
+      10 * 60 * 1000,
+    );
 
     return {
       message:
-        'User registered successfully, Please Follow Your Email To Verify Your Account',
-      data: {},
+        'User registered successfully, Please Check Your Email To Verify Your Account',
+      data: {
+        user: userData,
+      },
     };
   }
 
@@ -194,7 +210,7 @@ export class AuthService {
   async verifyEmail(data: VerifyEmailDto) {
     const { email, otp } = data;
 
-    const cachedOtp = await this.cacheManger.get(OTP_KEY(email));
+    const cachedOtp = await this.redisService.getData(OTP_KEY(email));
     if (!cachedOtp) {
       throw new AppRpcException({
         code: 'BAD_REQUEST',
@@ -203,7 +219,7 @@ export class AuthService {
       });
     }
 
-    if (cachedOtp !== otp) {
+    if (!(await this.hashService.compareHash(otp, cachedOtp))) {
       throw new AppRpcException({
         code: 'BAD_REQUEST',
         statusCode: 400,
@@ -225,7 +241,7 @@ export class AuthService {
 
     await this.authRepo.save(user);
 
-    await this.cacheManger.del(OTP_KEY(email));
+    await this.redisService.delete(OTP_KEY(email));
 
     const userData = userDataHelper(user);
 
@@ -315,6 +331,62 @@ export class AuthService {
         refreshToken,
         user: userData,
       },
+    };
+  }
+
+  async forgetPassword(data: any) {
+    const { email } = data;
+
+    // find email
+
+    // generate otp
+
+    // save otp in cache
+
+    // send event forget password
+
+    // return message
+  }
+
+  async verifyResetOtp(data: any) {
+    const { email, otp } = data;
+
+    // check email
+
+    // check otp in cache
+  }
+
+  async changePassword(data: any) {
+    const { oldPassword, newPassword, confirmNewPassword } = data;
+  }
+
+  async resendOtp(data: ResendOtpDto) {
+    const { email } = data;
+
+    const otp = OTP_GENERATOR();
+    const hashedOtp = await this.hashService.createHash(otp);
+
+    await this.redisService.setData(OTP_KEY(email), hashedOtp, 10 * 60 * 1000);
+
+    this.kafkaRequest.emit(this.kafkaClient, 'notification.resendOtp', {
+      email,
+      otp,
+    });
+
+    return {
+      message: 'Resend Otp successfully',
+      data: {},
+    };
+  }
+
+  async logout(data: JwtPayload) {
+    const { jti, exp } = data;
+
+    await this.tokenService.revokeToken(jti, exp);
+
+    return {
+      message: 'Your Logged out successfully',
+      data: {},
     };
   }
 }

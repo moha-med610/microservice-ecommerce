@@ -6,6 +6,8 @@ import { AuthEntity } from './model/auth.model.js';
 import { HashModule } from '../common/modules/hash/hash.module.js';
 import { TokenModule } from '@shared/common/modules/token/token.module.js';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { RedisCacheModule } from '@shared/common/modules/cache/cache.module.js';
+import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
 
 @Module({
   imports: [
@@ -27,8 +29,9 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     TypeOrmModule.forFeature([AuthEntity]),
     TokenModule,
     HashModule,
+    RedisCacheModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, KafkaRequestService],
 })
 export class AuthModule {}

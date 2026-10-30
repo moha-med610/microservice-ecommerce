@@ -1,6 +1,10 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import {
+  MicroserviceOptions,
+  RpcException,
+  Transport,
+} from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { AllRpcExceptionsFilter } from '@shared/common/filters/rpc-exception.filter.js';
 
@@ -18,6 +22,8 @@ async function bootstrap() {
         consumer: {
           groupId: 'auth-service-group',
           allowAutoTopicCreation: true,
+          sessionTimeout: 30000,
+          heartbeatInterval: 3000,
         },
         producer: {
           allowAutoTopicCreation: true,
@@ -30,6 +36,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
+      exceptionFactory: (errors) => new RpcException(errors),
     }),
   );
   app.useGlobalFilters(new AllRpcExceptionsFilter());
