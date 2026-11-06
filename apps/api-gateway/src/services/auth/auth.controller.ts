@@ -47,12 +47,6 @@ export class AuthController {
     return this.authService.logout(req['user']);
   }
 
-  @UseGuards(AuthGuard)
-  @Get('check')
-  check() {
-    return 'OK';
-  }
-
   @Throttle({ default: { limit: 1, ttl: 60 * 1000 } })
   @Post('resend-otp')
   async resendOtp(@Body() data: ResendOtpDto) {

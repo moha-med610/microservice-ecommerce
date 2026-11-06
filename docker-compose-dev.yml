@@ -3,7 +3,7 @@ services:
     image: apache/kafka:latest
     container_name: kafka
     hostname: kafka
-    restart: unless-stopped
+    restart: on-failure
     env_file:
       - .env
     networks:
@@ -13,7 +13,7 @@ services:
 
   postgres:
     image: postgres:15-alpine
-    restart: unless-stopped
+    restart: on-failure
     env_file:
       - .env
     networks:
@@ -26,7 +26,7 @@ services:
   redis:
     image: redis:8-alpine
     container_name: redis
-    restart: unless-stopped
+    restart: on-failure
     env_file:
       - .env
     ports:
@@ -36,8 +36,39 @@ services:
     volumes:
       - redis_data:/data
 
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    restart: on-failure
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - '27017:27017'
+
+  users-service:
+    container_name: users-service
+    restart: on-failure
+    build:
+      context: .
+      dockerfile: ./apps/users-service/dockerfile
+    env_file:
+      - .env
+    networks:
+      - e-commerce_microservice
+    volumes:
+      - ./apps/users-service:/app/apps/users-service:ro
+    depends_on:
+      - kafka
+      - mongodb
+      - redis
+
   auth-service:
     container_name: auth-service
+    restart: on-failure
     build:
       context: .
       dockerfile: ./apps/auth-service/dockerfile
@@ -48,20 +79,25 @@ services:
       - refresh_public_key
     env_file:
       - .env
+    volumes:
+      - ./apps/auth-service:/app/apps/auth-service:ro
     networks:
       - e-commerce_microservice
     depends_on:
       - kafka
       - postgres
-      - notifications-service
+      - redis
 
   notifications-service:
     container_name: notifications-service
+    restart: on-failure
     build:
       context: .
       dockerfile: ./apps/notifications-service/dockerfile
     env_file:
       - .env
+    volumes:
+      - ./apps/notifications-service:/app/apps/notifications-service:ro
     networks:
       - e-commerce_microservice
     depends_on:
@@ -69,6 +105,7 @@ services:
 
   api-gateway:
     container_name: api-gateway
+    restart: on-failure
     build:
       context: .
       dockerfile: ./apps/api-gateway/dockerfile
@@ -79,15 +116,19 @@ services:
       - '3000:3000'
     env_file:
       - .env
+    volumes:
+      - ./apps/api-gateway:/app/apps/api-gateway:ro
     networks:
       - e-commerce_microservice
     depends_on:
       - auth-service
+      - users-service
 
 volumes:
   postgres_data:
   kafka_data:
   redis_data:
+  mongodb_data:
 
 networks:
   e-commerce_microservice:

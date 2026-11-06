@@ -1,0 +1,5 @@
+export enum GENDER_ENUM {
+  MALE,
+  FEMALE,
+  NOT_PREFER_TO_ANSWER,
+}

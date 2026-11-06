@@ -3,6 +3,9 @@ import { createObserveModule } from '@nestjs/observe';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './services/auth/auth.module.js';
 import { CustomThrottlerGuard } from '@shared/common/guards/customThrottler.guard.js';
+import { UsersModule } from './services/users/users.module.js';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ConfigModule } from '@nestjs/config';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -26,8 +29,15 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       ],
     }),
 
+    // Config Module
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+    }),
+
     // MODULES
     AuthModule,
+    UsersModule,
   ],
   providers: [CustomThrottlerGuard],
 })
