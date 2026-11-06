@@ -18,21 +18,13 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "types": [
-      "vitest/globals",
-      "node"
-    ],
+    "types": ["vitest/globals", "node"],
     "paths": {
-      "@shared/*": [
-        "shared/*"
-      ]
+      "@shared/*": ["shared/*"]
     }
   },
   "files": [],
   "references": [
-    {
-      "path": "./apps/e-commerce-monorepo/tsconfig.app.json"
-    },
     {
       "path": "./apps/api-gateway/tsconfig.app.json"
     },
@@ -40,13 +32,10 @@
       "path": "./apps/auth-service/tsconfig.app.json"
     },
     {
-      "path": "./apps/e-commerce-microservices/tsconfig.app.json"
-    },
-    {
-      "path": "./apps/users/tsconfig.app.json"
-    },
-    {
       "path": "./apps/notifications-service/tsconfig.app.json"
+    },
+    {
+      "path": "./apps/users-service/tsconfig.app.json"
     }
   ]
 }

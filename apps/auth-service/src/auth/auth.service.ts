@@ -256,7 +256,10 @@ export class AuthService {
     );
 
     // send event to create profile data
-    this.kafkaClient.emit('auth.verified', user.id);
+    this.kafkaClient.emit('auth.verified', {
+      authId: user.id,
+      email: user.email,
+    });
 
     return {
       message: 'Congratulation, Your Account Verified successfully',
@@ -320,6 +323,11 @@ export class AuthService {
       refreshToken = this.tokenService.createToken(
         tokenPayloadHelper(TokenType.REFRESH, user),
       );
+
+      this.kafkaClient.emit('auth.verified', {
+        authId: user.id,
+        email: user.email,
+      });
     }
 
     const userData = userDataHelper(user);
