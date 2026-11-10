@@ -15,6 +15,7 @@ import { CustomFileInterceptor } from '../../common/interceptors/file.intercepto
 import { CompleteProfileDto } from './dto/users.dto.js';
 import { UsersService } from './users.service.js';
 import { v2 as cloudinary } from 'cloudinary';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 
 @Controller('users')
 export class UsersController {
@@ -35,5 +36,13 @@ export class UsersController {
   ) {
     const authId = userData(req).id;
     return this.usersService.completeProfile(file, data, authId);
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @UseGuards(AuthGuard)
+  @Get('profile')
+  async getProfile(@Req() req: Request) {
+    const authId = userData(req).id;
+    return this.usersService.getProfile(authId);
   }
 }

@@ -5,6 +5,6 @@
     "rootDir": "../..",
     "outDir": "../../dist/apps/users-service"
   },
-  "include": ["src/**/*", "../../shared/common/enums/gender.enum.ts"],
+  "include": ["src/**/*", "../../shared/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

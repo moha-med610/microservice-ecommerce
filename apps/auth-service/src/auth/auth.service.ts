@@ -16,14 +16,13 @@ import { OTP_KEY } from '../utils/cache-keys.js';
 import { OTP_GENERATOR } from '../utils/security/generateOtp.js';
 import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
 import { userDataHelper } from '../utils/user-data-helper.js';
-import {
-  GoogleTokenDto,
-  LoginDto,
-  RefreshTokenDto,
-  RegisterDto,
-  ResendOtpDto,
-  VerifyEmailDto,
-} from './dto/auth.dto.js';
+import type {
+  IAuthPayload,
+  IGoogleLoginPayload,
+  IRefreshTokenPayload,
+  IResendOtpPayload,
+  IVerifyEmailPayload,
+} from './interfaces/payload.interface.js';
 import { AuthEntity } from './model/auth.model.js';
 
 @Injectable()
@@ -42,7 +41,7 @@ export class AuthService {
     this.googleClient = new OAuth2Client();
   }
 
-  async login(loginData: LoginDto) {
+  async login(loginData: IAuthPayload) {
     const { email, password } = loginData;
 
     const findUser = await this.authRepo.findOne({ where: { email } });
@@ -93,7 +92,7 @@ export class AuthService {
     };
   }
 
-  async register(registerData: RegisterDto) {
+  async register(registerData: IAuthPayload) {
     const { email, password } = registerData;
 
     const findUser = await this.authRepo.findOne({ where: { email } });
@@ -139,7 +138,7 @@ export class AuthService {
     };
   }
 
-  async refreshToken(data: RefreshTokenDto) {
+  async refreshToken(data: IRefreshTokenPayload) {
     const { refreshToken } = data;
 
     // Verify the refresh token
@@ -207,7 +206,7 @@ export class AuthService {
     };
   }
 
-  async verifyEmail(data: VerifyEmailDto) {
+  async verifyEmail(data: IVerifyEmailPayload) {
     const { email, otp } = data;
 
     const cachedOtp = await this.redisService.getData(OTP_KEY(email));
@@ -271,7 +270,7 @@ export class AuthService {
     };
   }
 
-  async loginWithGoogle(data: GoogleTokenDto) {
+  async loginWithGoogle(data: IGoogleLoginPayload) {
     const { token } = data;
 
     const ticket = await this.googleClient.verifyIdToken({
@@ -368,7 +367,7 @@ export class AuthService {
     const { oldPassword, newPassword, confirmNewPassword } = data;
   }
 
-  async resendOtp(data: ResendOtpDto) {
+  async resendOtp(data: IResendOtpPayload) {
     const { email } = data;
 
     const otp = OTP_GENERATOR();
