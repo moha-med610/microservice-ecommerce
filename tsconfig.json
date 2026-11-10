@@ -2,6 +2,10 @@
   "compilerOptions": {
     "module": "nodenext",
     "moduleResolution": "nodenext",
+    "paths": {
+      "@shared/*": ["./shared/*"]
+    },
+
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,
     "isolatedModules": true,
@@ -18,24 +22,13 @@
     "skipLibCheck": true,
     "strict": true,
     "strictPropertyInitialization": false,
-    "types": ["vitest/globals", "node"],
-    "paths": {
-      "@shared/*": ["shared/*"]
-    }
+    "types": ["vitest/globals", "node"]
   },
   "files": [],
   "references": [
-    {
-      "path": "./apps/api-gateway/tsconfig.app.json"
-    },
-    {
-      "path": "./apps/auth-service/tsconfig.app.json"
-    },
-    {
-      "path": "./apps/notifications-service/tsconfig.app.json"
-    },
-    {
-      "path": "./apps/users-service/tsconfig.app.json"
-    }
+    { "path": "./apps/api-gateway/tsconfig.app.json" },
+    { "path": "./apps/auth-service/tsconfig.app.json" },
+    { "path": "./apps/notifications-service/tsconfig.app.json" },
+    { "path": "./apps/users-service/tsconfig.app.json" }
   ]
 }

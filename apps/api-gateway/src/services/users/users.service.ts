@@ -14,6 +14,7 @@ export class UsersService implements OnModuleInit {
 
   async onModuleInit() {
     this.client.subscribeToResponseOf('users.completeProfile');
+    this.client.subscribeToResponseOf('users.getProfile');
 
     await this.client.connect();
   }
@@ -33,5 +34,9 @@ export class UsersService implements OnModuleInit {
       avatarUrl: avatar.secure_url ?? null,
       avatarPublicId: avatar.public_id ?? null,
     });
+  }
+
+  async getProfile(authId: string) {
+    return this.kafkaRequest.send(this.client, 'users.getProfile', authId);
   }
 }

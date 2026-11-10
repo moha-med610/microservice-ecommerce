@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Users } from './schema/users.schema.js';
-import { Model } from 'mongoose';
-import { CompleteProfileDto } from './dto/users.dto.js';
 import { AppRpcException } from '@shared/utils/errors/app-rpc.exception.js';
+import { Model } from 'mongoose';
+import {
+  ICompleteUserProfile,
+  ICreateUserProfile,
+} from './interfaces/payload.interface.js';
+import { Users } from './schema/users.schema.js';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(Users.name) private usersModel: Model<Users>) {}
 
-  async createUserProfile(data: any) {
+  async createUserProfile(data: ICreateUserProfile) {
     const { authId, email } = data;
 
     await this.usersModel.create({
@@ -22,15 +25,11 @@ export class UsersService {
     };
   }
 
-  async completeUserData(
-    data: CompleteProfileDto,
-    authId: string,
-    avatarUrl?: string,
-    avatarPublicId?: string,
-  ) {
-    const { firstName, gender, lastName, phone } = data;
+  async completeUserData(payload: ICompleteUserProfile) {
+    const { firstName, gender, lastName, phone } = payload.data;
+    const { authId, avatarPublicId, avatarUrl } = payload;
     const user = await this.usersModel.findOneAndUpdate(
-      { authId },
+      { authId: authId },
       {
         firstName,
         lastName,
@@ -51,6 +50,24 @@ export class UsersService {
 
     return {
       message: 'Your Completed Your Profile Data successfully',
+      data: {
+        user,
+      },
+    };
+  }
+
+  async getUserProfile(authId: string) {
+    const user = await this.usersModel.findOne({ authId });
+    if (!user) {
+      throw new AppRpcException({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+        message: 'User Not Found',
+      });
+    }
+
+    return {
+      message: 'User Profile Data fetched successfully',
       data: {
         user,
       },
