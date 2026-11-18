@@ -1,12 +1,12 @@
 import { GatewayTimeoutException, Injectable } from '@nestjs/common';
 
-import { ClientKafka } from '@nestjs/microservices';
+import { ClientKafka, ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom, timeout, TimeoutError } from 'rxjs';
 
 @Injectable()
-export class KafkaRequestService {
+export class RequestService {
   async send<TResponse, TPayload>(
-    client: ClientKafka,
+    client: ClientKafka | ClientProxy,
     pattern: string,
     payload: TPayload,
     timeoutMs = 5000,

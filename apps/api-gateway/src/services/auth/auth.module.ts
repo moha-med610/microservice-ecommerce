@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthGuard } from '@shared/common/guards/auth.guard.js';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { TokenModule } from '@shared/common/modules/token/token.module.js';
@@ -11,6 +11,14 @@ import { TokenModule } from '@shared/common/modules/token/token.module.js';
   imports: [
     TokenModule,
     ClientsModule.register([
+      {
+        name: 'AUTH_SERVICE',
+        transport: Transport.TCP,
+        options: {
+          host: 'auth-service',
+          port: 3001,
+        },
+      },
       {
         name: 'KAFKA_SERVICE',
         transport: Transport.KAFKA,
@@ -30,6 +38,6 @@ import { TokenModule } from '@shared/common/modules/token/token.module.js';
     ]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthGuard, KafkaRequestService],
+  providers: [AuthService, AuthGuard, RequestService],
 })
 export class AuthModule {}

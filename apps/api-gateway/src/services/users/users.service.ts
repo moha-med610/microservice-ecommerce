@@ -1,23 +1,16 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ClientKafka } from '@nestjs/microservices';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { ClientKafka, ClientProxy } from '@nestjs/microservices';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 import { CompleteProfileDto } from './dto/users.dto.js';
 import { CloudinaryService } from '../../common/modules/cloudinary/cloudinary.service.js';
 
 @Injectable()
-export class UsersService implements OnModuleInit {
+export class UsersService {
   constructor(
-    @Inject('KAFKA_SERVICE') private readonly client: ClientKafka,
-    private kafkaRequest: KafkaRequestService,
+    @Inject('USERS_SERVICE') private readonly tcpClient: ClientProxy,
+    private requestService: RequestService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
-
-  async onModuleInit() {
-    this.client.subscribeToResponseOf('users.completeProfile');
-    this.client.subscribeToResponseOf('users.getProfile');
-
-    await this.client.connect();
-  }
 
   async completeProfile(
     file: Express.Multer.File,
@@ -28,7 +21,7 @@ export class UsersService implements OnModuleInit {
       file,
       'users/avatar',
     );
-    return this.kafkaRequest.send(this.client, 'users.completeProfile', {
+    return this.requestService.send(this.tcpClient, 'users.completeProfile', {
       data,
       authId,
       avatarUrl: avatar.secure_url ?? null,
@@ -37,6 +30,8 @@ export class UsersService implements OnModuleInit {
   }
 
   async getProfile(authId: string) {
-    return this.kafkaRequest.send(this.client, 'users.getProfile', authId);
+    return this.requestService.send(this.tcpClient, 'users.getProfile', {
+      authId,
+    });
   }
 }

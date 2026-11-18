@@ -4,10 +4,13 @@ import { type JwtPayload } from '@shared/common/types/jwt.payload.js';
 import { AuthService } from './auth.service.js';
 import type {
   IAuthPayload,
+  IChangePasswordPayload,
   IGoogleLoginPayload,
   IRefreshTokenPayload,
   IResendOtpPayload,
+  IResetPasswordPayload,
   IVerifyEmailPayload,
+  IVerifyForgetPasswordOtpPayload,
 } from './interfaces/payload.interface.js';
 
 @Controller('auth')
@@ -52,5 +55,20 @@ export class AuthController {
   @EventPattern('auth.resendOtp')
   async resendOtp(@Payload() data: IResendOtpPayload) {
     return this.authService.resendOtp(data);
+  }
+
+  @MessagePattern('auth.changePassword')
+  async changePassword(@Payload() data: IChangePasswordPayload) {
+    return this.authService.changePassword(data);
+  }
+
+  @MessagePattern('auth.verifyForgetPassword')
+  async verifyForgetPassword(@Payload() data: IVerifyForgetPasswordOtpPayload) {
+    return this.authService.verifyForgetPasswordOtp(data);
+  }
+
+  @MessagePattern('auth.resetPassword')
+  async resetPassword(@Payload() data: IResetPasswordPayload) {
+    return this.authService.resetPassword(data);
   }
 }

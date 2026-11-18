@@ -1,62 +1,92 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { ClientKafka } from '@nestjs/microservices';
+import { ClientKafka, ClientProxy } from '@nestjs/microservices';
 import { JwtPayload } from '@shared/common/types/jwt.payload.js';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 import {
+  ChangePasswordDto,
+  ForgetPasswordDto,
   LoginDto,
   RefreshTokenDto,
   RegisterDto,
   ResendOtpDto,
+  ResetPasswordDto,
   VerifyEmailDto,
+  VerifyForgetPasswordDto,
 } from './dto/auth.dto.js';
 
 @Injectable()
-export class AuthService implements OnModuleInit {
+export class AuthService {
   constructor(
-    @Inject('KAFKA_SERVICE') private readonly client: ClientKafka,
-    private readonly KafkaRequest: KafkaRequestService,
+    @Inject('AUTH_SERVICE') private readonly tcpClient: ClientProxy,
+    @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
+    private readonly requestService: RequestService,
   ) {}
 
-  async onModuleInit() {
-    this.client.subscribeToResponseOf('auth.login');
-    this.client.subscribeToResponseOf('auth.register');
-    this.client.subscribeToResponseOf('auth.refresh');
-    this.client.subscribeToResponseOf('auth.verifyEmail');
-    this.client.subscribeToResponseOf('auth.logout');
-
-    await this.client.connect();
-  }
-
   async login(loginData: LoginDto) {
-    return this.KafkaRequest.send(this.client, 'auth.login', loginData);
+    return this.requestService.send(this.tcpClient, 'auth.login', loginData);
   }
 
   async register(registerData: RegisterDto) {
-    return this.KafkaRequest.send(this.client, 'auth.register', registerData);
+    return this.requestService.send(
+      this.tcpClient,
+      'auth.register',
+      registerData,
+    );
   }
 
   async refreshToken(data: RefreshTokenDto) {
-    return this.KafkaRequest.send(this.client, 'auth.refresh', data);
+    return this.requestService.send(this.tcpClient, 'auth.refresh', data);
   }
 
   async verifyEmail(data: VerifyEmailDto) {
-    return this.KafkaRequest.send(this.client, 'auth.verifyEmail', data);
+    return this.requestService.send(this.tcpClient, 'auth.verifyEmail', data);
   }
 
   async loginWithGoogle(data: any) {
-    return this.KafkaRequest.send(this.client, 'auth.loginWithGoogle', data);
+    return this.requestService.send(
+      this.tcpClient,
+      'auth.loginWithGoogle',
+      data,
+    );
   }
 
   async logout(data: JwtPayload) {
-    return this.KafkaRequest.send(this.client, 'auth.logout', data);
+    return this.requestService.send(this.tcpClient, 'auth.logout', data);
   }
 
   async resendOtp(data: ResendOtpDto) {
-    this.KafkaRequest.emit(this.client, 'auth.resendOtp', data);
+    this.requestService.emit(this.kafkaClient, 'auth.resendOtp', data);
 
     return {
       message: 'Resend Otp Successfully',
       data: {},
     };
+  }
+
+  async forgetPassword(data: ForgetPasswordDto) {
+    return this.requestService.send(
+      this.tcpClient,
+      'auth.forgetPassword',
+      data,
+    );
+  }
+
+  async verifyForgetPasswordOtp(data: VerifyForgetPasswordDto) {
+    return this.requestService.send(
+      this.tcpClient,
+      'auth.verifyForgetPassword',
+      data,
+    );
+  }
+
+  async resetPassword(data: ResetPasswordDto) {
+    return this.requestService.send(this.tcpClient, 'auth.resetPassword', data);
+  }
+
+  async changePassword(data: ChangePasswordDto, userPayload: JwtPayload) {
+    return this.requestService.send(this.tcpClient, 'auth.changePassword', {
+      userPayload,
+      data,
+    });
   }
 }

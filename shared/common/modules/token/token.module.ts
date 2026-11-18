@@ -8,9 +8,6 @@ import { RedisCacheModule } from '../cache/cache.module.js';
   imports: [
     JwtModule.register({
       global: true,
-      signOptions: {
-        jwtid: Crypto.randomUUID(),
-      },
     }),
     RedisCacheModule,
   ],

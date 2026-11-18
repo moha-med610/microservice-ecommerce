@@ -1,3 +1,5 @@
+import { JwtPayload } from '@shared/common/types/jwt.payload.js';
+
 export interface IAuthPayload {
   email: string;
   password: string;
@@ -18,4 +20,26 @@ export interface IGoogleLoginPayload {
 
 export interface IResendOtpPayload {
   email: string;
+}
+
+export interface IForgetPasswordPayload {
+  email: string;
+}
+
+export interface IVerifyForgetPasswordOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface IResetPasswordPayload {
+  email: string;
+  newPassword: string;
+}
+
+export interface IChangePasswordPayload {
+  userPayload: JwtPayload;
+  data: {
+    oldPassword: string;
+    newPassword: string;
+  };
 }

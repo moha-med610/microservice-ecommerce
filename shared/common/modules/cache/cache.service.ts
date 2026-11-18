@@ -9,7 +9,7 @@ export class RedisCacheService {
     return await this.cacheManger.get(key);
   }
 
-  async setData<T>(key: string, value: T | any, ttl?: number) {
+  async setData<T>(key: string, value: T | any, ttl: number = 10 * 60 * 1000) {
     return await this.cacheManger.set(key, value, ttl);
   }
 
