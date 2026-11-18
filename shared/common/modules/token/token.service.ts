@@ -12,6 +12,7 @@ import {
 import { UserTokenData } from '@shared/common/types/token-data.js';
 import { RedisCacheService } from '../cache/cache.service.js';
 import { blackListTokes } from '@shared/utils/cache-keys.js';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class TokenService {
@@ -26,6 +27,8 @@ export class TokenService {
         ? process.env.ACCESS_TOKEN_EXPIRES_IN
         : process.env.REFRESH_TOKEN_EXPIRES_IN;
 
+    const jti = randomUUID();
+
     return this.jwtService.sign(payload, {
       privateKey:
         payload.type === TokenType.ACCESS
@@ -33,6 +36,7 @@ export class TokenService {
           : getRefreshPrivateKey(),
       algorithm: 'RS256',
       expiresIn: expiresIn as ms.StringValue,
+      jwtid: jti,
     });
   }
 

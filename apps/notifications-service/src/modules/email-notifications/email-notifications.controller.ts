@@ -18,4 +18,9 @@ export class EmailNotificationsController {
   async resendOtp(@Payload() data: IOtpPayload) {
     return this.emailNotificationsService.sendOtpEmail(data);
   }
+
+  @EventPattern('notification.forgetPassword')
+  async forgetPassword(@Payload() data: IOtpPayload) {
+    return this.emailNotificationsService.sendOtpEmail(data);
+  }
 }

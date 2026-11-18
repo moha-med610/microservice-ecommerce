@@ -9,10 +9,12 @@ import {
 } from 'class-validator';
 
 export class LoginDto {
+  @IsString()
   @IsEmail()
   @IsNotEmpty()
   email!: string;
 
+  @IsString()
   @IsNotEmpty()
   @IsStrongPassword({
     minLength: 8,
@@ -73,4 +75,68 @@ export class ResendOtpDto {
   @IsString()
   @IsNotEmpty()
   email: string;
+}
+
+export class ForgetPasswordDto {
+  @IsEmail()
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+}
+
+export class ChangePasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  oldPassword: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsStrongPassword({
+    minLength: 8,
+    minLowercase: 1,
+    minNumbers: 1,
+    minSymbols: 1,
+    minUppercase: 1,
+  })
+  newPassword: string;
+
+  @Match('newPassword', { message: 'Password Do Not Match' })
+  @IsString()
+  @IsNotEmpty()
+  confirmNewPassword: string;
+}
+
+export class VerifyForgetPasswordDto {
+  @IsEmail()
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 6)
+  otp!: string;
+}
+
+export class ResetPasswordDto {
+  @IsEmail()
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsStrongPassword({
+    minLength: 8,
+    minLowercase: 1,
+    minNumbers: 1,
+    minSymbols: 1,
+    minUppercase: 1,
+  })
+  newPassword: string;
+
+  @Match('newPassword', { message: 'Password Do Not Match' })
+  @IsString()
+  @IsNotEmpty()
+  confirmNewPassword: string;
 }

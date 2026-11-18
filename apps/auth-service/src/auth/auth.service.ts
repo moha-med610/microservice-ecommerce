@@ -7,23 +7,27 @@ import { RedisCacheService } from '@shared/common/modules/cache/cache.service.js
 import { TokenService } from '@shared/common/modules/token/token.service.js';
 import { JwtPayload } from '@shared/common/types/jwt.payload.js';
 import { AppRpcException } from '@shared/utils/errors/app-rpc.exception.js';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 import { OAuth2Client } from 'google-auth-library';
 import { Repository } from 'typeorm';
 import { AUTH_PROVIDER } from '../common/enums/auth-provider.enum.js';
 import { HashService } from '../common/modules/hash/hash.service.js';
-import { OTP_KEY } from '../utils/cache-keys.js';
+import { OTP_KEY, VERIFIED_PASSWORD_OTP_KEY } from '../utils/cache-keys.js';
 import { OTP_GENERATOR } from '../utils/security/generateOtp.js';
 import { tokenPayloadHelper } from '../utils/token-payload-helper.js';
 import { userDataHelper } from '../utils/user-data-helper.js';
 import type {
   IAuthPayload,
+  IChangePasswordPayload,
   IGoogleLoginPayload,
   IRefreshTokenPayload,
   IResendOtpPayload,
+  IResetPasswordPayload,
   IVerifyEmailPayload,
+  IVerifyForgetPasswordOtpPayload,
 } from './interfaces/payload.interface.js';
 import { AuthEntity } from './model/auth.model.js';
+import { userData } from '@shared/utils/extract-user-data.js';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +40,7 @@ export class AuthService {
     private readonly hashService: HashService,
     private readonly redisService: RedisCacheService,
     @Inject('KAFKA_SERVICE') private readonly kafkaClient: ClientKafka,
-    private readonly kafkaRequest: KafkaRequestService,
+    private readonly RequestService: RequestService,
   ) {
     this.googleClient = new OAuth2Client();
   }
@@ -87,7 +91,7 @@ export class AuthService {
 
     // return access token and refresh token and user data
     return {
-      message: 'Welcome Back!, Your Logged in successfully',
+      message: "Welcome Back!, You're Logged in successfully",
       data: { accessToken, refreshToken, user: userData },
     };
   }
@@ -116,22 +120,18 @@ export class AuthService {
     const hashedOtp = await this.hashService.createHash(otp);
 
     // call send email verification email
-    this.kafkaRequest.emit(this.kafkaClient, 'user.created', {
+    this.RequestService.emit(this.kafkaClient, 'user.created', {
       email: newUser.email,
       otp,
     });
 
     const userData = userDataHelper(newUser);
 
-    await this.redisService.setData(
-      OTP_KEY(newUser.email),
-      hashedOtp,
-      10 * 60 * 1000,
-    );
+    await this.redisService.setData(OTP_KEY(newUser.email), hashedOtp);
 
     return {
       message:
-        'User registered successfully, Please Check Your Email To Verify Your Account',
+        "User registered successfully, Please Check Your Email To Verify You're Account",
       data: {
         user: userData,
       },
@@ -294,7 +294,7 @@ export class AuthService {
         throw new AppRpcException({
           code: 'BAD_REQUEST',
           statusCode: 400,
-          message: 'Try Login With Your App Account',
+          message: "Try Login With You're App Account",
         });
       }
 
@@ -345,26 +345,155 @@ export class AuthService {
     const { email } = data;
 
     // find email
+    const user = await this.authRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new AppRpcException({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+        message: 'User Not Found',
+      });
+    }
 
     // generate otp
+    const otp = OTP_GENERATOR();
+    const hashedOtp = await this.hashService.createHash(otp);
 
     // save otp in cache
+    await this.redisService.setData(OTP_KEY(email), hashedOtp);
 
     // send event forget password
+    this.RequestService.emit(this.kafkaClient, 'notification.forgetPassword', {
+      email,
+      otp,
+    });
 
     // return message
+    return {
+      message: "OTP Sent Successfully, Please Check You're Email",
+      data: {},
+    };
   }
 
-  async verifyResetOtp(data: any) {
+  async verifyForgetPasswordOtp(data: IVerifyForgetPasswordOtpPayload) {
     const { email, otp } = data;
+    console.log({ data });
 
     // check email
+    const user = await this.authRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new AppRpcException({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+        message: 'User Not Found',
+      });
+    }
 
     // check otp in cache
+    const cachedOtp = await this.redisService.getData(OTP_KEY(email));
+    if (!cachedOtp) {
+      throw new AppRpcException({
+        code: 'BAD_REQUEST',
+        statusCode: 400,
+        message: 'OTP is Expired',
+      });
+    }
+
+    const isOtpValid = await this.hashService.compareHash(otp, cachedOtp);
+    if (!isOtpValid) {
+      throw new AppRpcException({
+        code: 'BAD_REQUEST',
+        statusCode: 400,
+        message: 'Invalid OTP',
+      });
+    }
+
+    await this.redisService.delete(OTP_KEY(email));
+    await this.redisService.setData(VERIFIED_PASSWORD_OTP_KEY(email), true);
+
+    return {
+      message: 'OTP Verified Successfully, You Can Reset Your Password Now',
+      data: {},
+    };
   }
 
-  async changePassword(data: any) {
-    const { oldPassword, newPassword, confirmNewPassword } = data;
+  async resetPassword(data: IResetPasswordPayload) {
+    const { email, newPassword } = data;
+
+    const isUserVerified = await this.redisService.getData(
+      VERIFIED_PASSWORD_OTP_KEY(email),
+    );
+    if (!isUserVerified) {
+      throw new AppRpcException({
+        code: 'BAD_REQUEST',
+        statusCode: 400,
+        message: 'Failed To Reset Your Password, Please Try Again',
+      });
+    }
+
+    const user = await this.authRepo.findOne({ where: { email } });
+    if (!user) {
+      throw new AppRpcException({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+        message: 'User Not Found',
+      });
+    }
+
+    const hashedPassword = await this.hashService.createHash(newPassword);
+
+    user.password = hashedPassword;
+    await this.authRepo.save(user);
+
+    return {
+      message: 'Password Reset Successfully',
+      data: {
+        user: userDataHelper(user),
+      },
+    };
+  }
+
+  async changePassword(data: IChangePasswordPayload) {
+    const { newPassword, oldPassword } = data.data;
+    const { id } = data.userPayload;
+
+    const user = await this.authRepo.findOneBy({ id });
+    if (!user) {
+      throw new AppRpcException({
+        code: 'NOT_FOUND',
+        statusCode: 404,
+        message: 'User Not Found',
+      });
+    }
+
+    if (user.provider !== AUTH_PROVIDER.SYSTEM) {
+      throw new AppRpcException({
+        code: 'BAD_REQUEST',
+        statusCode: 400,
+        message: 'Your Account is Use Different Provider',
+      });
+    }
+
+    const checkCorrectPassword = await this.hashService.compareHash(
+      oldPassword,
+      user.password!,
+    );
+    if (!checkCorrectPassword) {
+      throw new AppRpcException({
+        code: 'UNAUTHORIZED',
+        statusCode: 401,
+        message: 'Invalid Password',
+      });
+    }
+
+    const hashNewPassword = await this.hashService.createHash(newPassword);
+
+    user.password = hashNewPassword;
+    await this.authRepo.save(user);
+
+    return {
+      message: 'Password Changed Successfully',
+      data: {},
+    };
   }
 
   async resendOtp(data: IResendOtpPayload) {
@@ -373,9 +502,9 @@ export class AuthService {
     const otp = OTP_GENERATOR();
     const hashedOtp = await this.hashService.createHash(otp);
 
-    await this.redisService.setData(OTP_KEY(email), hashedOtp, 10 * 60 * 1000);
+    await this.redisService.setData(OTP_KEY(email), hashedOtp);
 
-    this.kafkaRequest.emit(this.kafkaClient, 'notification.resendOtp', {
+    this.RequestService.emit(this.kafkaClient, 'notification.resendOtp', {
       email,
       otp,
     });
@@ -392,7 +521,7 @@ export class AuthService {
     await this.tokenService.revokeToken(jti, exp);
 
     return {
-      message: 'Your Logged out successfully',
+      message: "You're Logged out successfully",
       data: {},
     };
   }

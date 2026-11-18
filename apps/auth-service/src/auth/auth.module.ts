@@ -7,7 +7,7 @@ import { HashModule } from '../common/modules/hash/hash.module.js';
 import { TokenModule } from '@shared/common/modules/token/token.module.js';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { RedisCacheModule } from '@shared/common/modules/cache/cache.module.js';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 
 @Module({
   imports: [
@@ -32,6 +32,6 @@ import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.j
     RedisCacheModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, KafkaRequestService],
+  providers: [AuthService, RequestService],
 })
 export class AuthModule {}

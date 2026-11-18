@@ -9,6 +9,7 @@ import { createKeyv } from '@keyv/redis';
     CacheModule.register({
       stores: [createKeyv('redis://redis:6379')],
       isGlobal: true,
+      ttl: 10 * 60 * 1000,
     }),
   ],
   providers: [RedisCacheService],

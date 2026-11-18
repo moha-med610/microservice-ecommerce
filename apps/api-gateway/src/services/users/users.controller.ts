@@ -1,3 +1,4 @@
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import {
   Body,
   Controller,
@@ -14,8 +15,6 @@ import { type Request } from 'express';
 import { CustomFileInterceptor } from '../../common/interceptors/file.interceptor.js';
 import { CompleteProfileDto } from './dto/users.dto.js';
 import { UsersService } from './users.service.js';
-import { v2 as cloudinary } from 'cloudinary';
-import { CacheInterceptor } from '@nestjs/cache-manager';
 
 @Controller('users')
 export class UsersController {
@@ -39,10 +38,12 @@ export class UsersController {
   }
 
   @UseInterceptors(CacheInterceptor)
+  @CacheTTL(5 * 60 * 1000)
   @UseGuards(AuthGuard)
   @Get('profile')
   async getProfile(@Req() req: Request) {
     const authId = userData(req).id;
+    console.log('JTI', userData(req).jti);
     return this.usersService.getProfile(authId);
   }
 }

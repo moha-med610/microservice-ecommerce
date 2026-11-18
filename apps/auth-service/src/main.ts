@@ -9,28 +9,34 @@ import { ValidationPipe } from '@nestjs/common';
 import { AllRpcExceptionsFilter } from '@shared/common/filters/rpc-exception.filter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
-    AppModule,
-    {
-      transport: Transport.KAFKA,
-      options: {
-        client: {
-          clientId: 'auth-service',
-          brokers: ['kafka:9092'],
-        },
-        retry: { initialRetryTime: 300, retries: 15 },
-        consumer: {
-          groupId: 'auth-service-group',
-          allowAutoTopicCreation: true,
-          sessionTimeout: 30000,
-          heartbeatInterval: 3000,
-        },
-        producer: {
-          allowAutoTopicCreation: true,
-        },
+  const app = await NestFactory.create(AppModule);
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+    options: {
+      retryAttempts: 5,
+      retryDelay: 3000,
+      host: '0.0.0.0',
+      port: 3001,
+    },
+  });
+
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.KAFKA,
+    options: {
+      client: {
+        clientId: 'auth-service',
+        brokers: ['kafka:9092'],
+      },
+      retry: { initialRetryTime: 300, retries: 15 },
+
+      producer: {
+        allowAutoTopicCreation: true,
       },
     },
-  );
+  });
+
+  await app.startAllMicroservices();
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -41,6 +47,6 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new AllRpcExceptionsFilter());
 
-  await app.listen();
+  await app.listen(4001);
 }
 await bootstrap();

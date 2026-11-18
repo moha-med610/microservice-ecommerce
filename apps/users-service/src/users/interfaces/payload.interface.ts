@@ -1,12 +1,15 @@
-import { CompleteProfileDto } from '../dto/users.dto.js';
-
 export interface ICreateUserProfile {
   authId: string;
   email: string;
 }
 
 export interface ICompleteUserProfile {
-  data: CompleteProfileDto;
+  data: {
+    firstName: string;
+    lastName: string;
+    gender: string;
+    phone: string[];
+  };
   authId: string;
   avatarUrl?: string;
   avatarPublicId?: string;

@@ -3,7 +3,7 @@ import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthGuard } from '@shared/common/guards/auth.guard.js';
-import { KafkaRequestService } from '@shared/utils/errors/kafka-request-helper.js';
+import { RequestService } from '@shared/utils/errors/kafka-request-helper.js';
 import { TokenModule } from '@shared/common/modules/token/token.module.js';
 import { CloudinaryModule } from '../../common/modules/cloudinary/cloudinary.module.js';
 
@@ -11,19 +11,11 @@ import { CloudinaryModule } from '../../common/modules/cloudinary/cloudinary.mod
   imports: [
     ClientsModule.register([
       {
-        name: 'KAFKA_SERVICE',
-        transport: Transport.KAFKA,
+        name: 'USERS_SERVICE',
+        transport: Transport.TCP,
         options: {
-          client: {
-            clientId: 'users-service',
-            brokers: ['kafka:9092'],
-          },
-          producer: {
-            allowAutoTopicCreation: true,
-          },
-          consumer: {
-            groupId: 'users-service-consumer',
-          },
+          host: 'users-service',
+          port: 3002,
         },
       },
     ]),
@@ -31,6 +23,6 @@ import { CloudinaryModule } from '../../common/modules/cloudinary/cloudinary.mod
     CloudinaryModule,
   ],
   controllers: [UsersController],
-  providers: [UsersService, AuthGuard, KafkaRequestService],
+  providers: [UsersService, AuthGuard, RequestService],
 })
 export class UsersModule {}
